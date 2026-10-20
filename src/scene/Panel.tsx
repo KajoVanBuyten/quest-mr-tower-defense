@@ -17,10 +17,12 @@ export interface PanelProps {
   onPress?: () => void
   visible?: () => boolean
   renderOrder?: number
+  /** draw on top of everything (ignores real-world occluders) */
+  overlay?: boolean
 }
 
 /** A world-space canvas panel. With onPress it becomes a button usable by mouse, rays and finger pokes. */
-export function Panel({ width, height, resolution = 2400, position, rotation, signature, draw, onPress, visible, renderOrder = 20 }: PanelProps) {
+export function Panel({ width, height, resolution = 2400, position, rotation, signature, draw, onPress, visible, renderOrder = 20, overlay = false }: PanelProps) {
   const mesh = useRef<Mesh>(null)
   const hover = useRef(false)
   const pressedAt = useRef(0)
@@ -66,9 +68,9 @@ export function Panel({ width, height, resolution = 2400, position, rotation, si
     : {}
 
   return (
-    <mesh ref={mesh} position={position} rotation={rotation} renderOrder={renderOrder} {...handlers}>
+    <mesh ref={mesh} position={position} rotation={rotation} renderOrder={overlay ? renderOrder + 20 : renderOrder} {...handlers}>
       <planeGeometry args={[width, height]} />
-      <meshBasicMaterial map={panel.texture} transparent toneMapped={false} depthWrite={false} />
+      <meshBasicMaterial map={panel.texture} transparent toneMapped={false} depthWrite={false} depthTest={!overlay} />
     </mesh>
   )
 }

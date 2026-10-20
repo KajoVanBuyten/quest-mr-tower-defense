@@ -24,6 +24,11 @@ export type SoundName =
   | 'orbitalImpact'
   | 'land'
   | 'overheat'
+  | 'select'
+  | 'shieldBreak'
+  | 'split'
+  | 'heal'
+  | 'bossWarn'
 
 const MIN_INTERVAL: Partial<Record<SoundName, number>> = {
   laser: 0.09,
@@ -34,6 +39,9 @@ const MIN_INTERVAL: Partial<Record<SoundName, number>> = {
   frost: 0.15,
   explosion: 0.05,
   coreHit: 0.12,
+  shieldBreak: 0.08,
+  split: 0.08,
+  heal: 0.2,
 }
 
 const _fwd = new Vector3()
@@ -345,6 +353,40 @@ export class Sfx {
         const d = this.out(pos, 0.12 * intensity, 0.2)
         if (!d) return
         this.osc('sine', 140, 50, t, 0.12, d, 0.8)
+        break
+      }
+      case 'select': {
+        const d = this.out(pos, 0.2, 0.3)
+        if (!d) return
+        this.osc('sine', 880, 1320, t, 0.12, d, 0.5)
+        this.osc('triangle', 1320, 1760, t + 0.06, 0.14, d, 0.3)
+        break
+      }
+      case 'shieldBreak': {
+        const d = this.out(pos, 0.3, 0.5)
+        if (!d) return
+        this.noiseBurst(t, 0.35, d, 'highpass', 4000, 1200, 0.6)
+        this.osc('triangle', 1800, 300, t, 0.3, d, 0.4)
+        break
+      }
+      case 'split': {
+        const d = this.out(pos, 0.25, 0.4)
+        if (!d) return
+        this.noiseBurst(t, 0.25, d, 'bandpass', 500, 1500, 0.7, 3)
+        this.osc('sine', 300, 600, t, 0.2, d, 0.4)
+        break
+      }
+      case 'heal': {
+        const d = this.out(pos, 0.15, 0.6)
+        if (!d) return
+        ;[660, 830, 990].forEach((f, i) => this.osc('sine', f, f * 1.02, t + i * 0.05, 0.3, d, 0.35, 'lin'))
+        break
+      }
+      case 'bossWarn': {
+        const d = this.out(undefined, 0.4, 2.6)
+        if (!d) return
+        for (let i = 0; i < 3; i++) this.osc('sawtooth', 220, 110, t + i * 0.55, 0.45, d, 0.35)
+        this.osc('sine', 55, 40, t, 2.2, d, 0.9)
         break
       }
       case 'overheat': {

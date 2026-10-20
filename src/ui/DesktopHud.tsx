@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { sfx } from '../game/audio'
-import { MAX_TOWER_LEVEL, TOWER_ORDER, TOWERS } from '../game/config'
+import { ENEMIES, TOWER_ORDER, TOWERS, type WavePreview } from '../game/config'
 import { game } from '../game/Game'
 import { useUI } from '../game/uiStore'
 
@@ -17,6 +17,32 @@ function Toast() {
   return (
     <div key={key} className={`toast ${visible ? 'show' : ''}`}>
       {message}
+    </div>
+  )
+}
+
+function Preview({ pv, running }: { pv: WavePreview; running: boolean }) {
+  return (
+    <div className={`wave-preview ${pv.tag === 'BOSS' ? 'boss' : pv.tag === 'MINI-BOSS' ? 'mini' : ''}`}>
+      <div className="wp-head">
+        <span>{running ? 'Aktuelle Welle' : 'Nächste Welle'}</span>
+        {pv.tag && <b className="wp-tag">{pv.tag}</b>}
+      </div>
+      <div className="wp-name">{pv.name}</div>
+      <div className="wp-list">
+        {pv.entries.map((e) => (
+          <span
+            key={e.type}
+            className={`wp-chip ${ENEMIES[e.type].boss ? 'big' : ''} ${pv.fresh.includes(e.type) ? 'fresh' : ''}`}
+            style={{ ['--c' as string]: ENEMIES[e.type].color }}
+            title={ENEMIES[e.type].hint}
+          >
+            <i />
+            {ENEMIES[e.type].name} <b>×{e.count}</b>
+          </span>
+        ))}
+      </div>
+      {pv.fresh.length > 0 && <div className="wp-fresh">Neu: {pv.fresh.map((t) => `${ENEMIES[t].name} – ${ENEMIES[t].hint}`).join(' · ')}</div>}
     </div>
   )
 }
@@ -39,8 +65,8 @@ export function DesktopHud() {
           <div className="hud-row">
             <span className="hud-label">Welle</span>
             <span className="hud-value">
-              {s.phase === 'wave' ? s.wave : Math.min(s.wave + 1, s.totalWaves)}
-              <small>/{s.totalWaves}</small>
+              {s.phase === 'wave' ? s.wave : s.endless ? s.wave + 1 : Math.min(s.wave + 1, s.totalWaves)}
+              {s.endless ? <small className="endless"> ∞ Endlos</small> : <small>/{s.totalWaves}</small>}
             </span>
           </div>
           <div className="hud-row">
@@ -56,7 +82,17 @@ export function DesktopHud() {
             <span className="hud-label">Credits</span>
             <span className="hud-credits">◆ {s.credits}</span>
           </div>
+          <div className="hud-row">
+            <span className="hud-label">Punkte</span>
+            <span className="hud-score">{s.score.toLocaleString('de-DE')}</span>
+          </div>
+          {s.highScore > 0 && (
+            <div className="hud-sub">
+              Rekord {s.highScore.toLocaleString('de-DE')} · Welle {s.highWave}
+            </div>
+          )}
           {s.phase === 'wave' && <div className="hud-sub">{s.enemiesAlive} Gegner verbleibend</div>}
+          {s.preview && (s.phase === 'build' || s.phase === 'wave') && <Preview pv={s.preview} running={s.phase === 'wave'} />}
         </div>
         <div className="hud-right">
           <button
@@ -76,7 +112,12 @@ export function DesktopHud() {
       </div>
 
       {s.phase === 'placeCore' && <div className="hud-center-hint">Klicke auf Boden oder Tisch, um den Energiekern zu platzieren</div>}
-      {s.hoverInfo && <div className="hud-hover">{s.hoverInfo}{s.hoverInfo.includes('MAX') ? '' : ` · Klick: Upgrade (max. Stufe ${MAX_TOWER_LEVEL}) · Rechtsklick: verkaufen`}</div>}
+      {s.selectedTowerId > 0 ? (
+        <div className="hud-hover">Turm gewählt · U Upgrade · X Verkaufen · T Zielmodus · Esc oder Klick daneben schließt</div>
+      ) : (
+        s.hoverInfo && <div className="hud-hover">{s.hoverInfo} · Klick: Turm auswählen</div>
+      )}
+      {s.orbitalArmed && <div className="hud-hover armed">Orbitalschlag bereit – klicke auf das Ziel</div>}
 
       <Toast />
 
@@ -84,10 +125,20 @@ export function DesktopHud() {
         <div className={`endscreen ${s.phase}`}>
           <h2>{s.phase === 'victory' ? 'SIEG' : 'KERN ZERSTÖRT'}</h2>
           <p>
-            {s.phase === 'victory' ? 'Alle zehn Wellen abgewehrt.' : `Du hast bis Welle ${s.wave} durchgehalten.`} {s.kills} Kreaturen besiegt.
+            {s.phase === 'victory' ? `Alle ${s.totalWaves} Wellen abgewehrt.` : `Du hast bis Welle ${s.wave}${s.endless ? ' im Endlos-Modus' : ''} durchgehalten.`}{' '}
+            {s.kills} Kreaturen besiegt.
+          </p>
+          <p className="end-score">
+            {s.score.toLocaleString('de-DE')} Punkte
+            {s.score >= s.highScore && s.score > 0 ? <b> ★ Neuer Rekord</b> : <span> · Rekord {s.highScore.toLocaleString('de-DE')}</span>}
           </p>
           <div className="end-actions">
-            <button className="btn-primary small" onClick={() => game.restart()}>
+            {s.phase === 'victory' && (
+              <button className="btn-primary small" onClick={() => game.continueEndless()}>
+                ∞ Endlos weiter
+              </button>
+            )}
+            <button className={s.phase === 'victory' ? 'btn-secondary small' : 'btn-primary small'} onClick={() => game.restart()}>
               Neu starten
             </button>
             <button className="btn-ghost small" onClick={() => game.exitXR()}>
@@ -132,8 +183,8 @@ export function DesktopHud() {
               </div>
             </div>
             {s.phase === 'build' ? (
-              <button className="btn-primary small" onClick={() => game.startWave()}>
-                ▶ Welle {s.wave + 1} starten
+              <button className="btn-primary small" disabled={s.intro} onClick={() => game.startWave()}>
+                {s.intro ? 'Risse öffnen sich …' : `▶ Welle ${s.wave + 1} starten`}
               </button>
             ) : (
               <button className={`btn-secondary small ${s.ult >= 1 ? 'ready' : ''}`} disabled={s.ult < 1} onClick={() => game.armOrbital()}>
@@ -141,7 +192,7 @@ export function DesktopHud() {
               </button>
             )}
           </div>
-          <div className="keys-hint">Linksklick bauen/upgraden · Rechtsklick verkaufen · F Blaster · Q Orbital · Leertaste Welle · Ziehen: Kamera</div>
+          <div className="keys-hint">Linksklick bauen / Turm wählen · U Upgrade · X Verkaufen · T Zielmodus · F Blaster · Q Orbital · Leertaste Welle · Ziehen: Kamera</div>
         </div>
       )}
     </div>

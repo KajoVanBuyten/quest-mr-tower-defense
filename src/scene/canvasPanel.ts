@@ -94,3 +94,37 @@ export function text(ctx: CanvasRenderingContext2D, s: string, x: number, y: num
 export function hpColor(frac: number) {
   return frac > 0.6 ? '#4ff7c8' : frac > 0.3 ? '#ffd24f' : '#ff4d6a'
 }
+
+/** Row of creature icons with counts for the wave preview. Returns the x after the last entry. */
+export function previewRow(
+  ctx: CanvasRenderingContext2D,
+  entries: Array<{ color: string; count: number; boss: number }>,
+  x: number,
+  y: number,
+  size: number,
+  maxX: number,
+) {
+  for (const e of entries) {
+    const r = size * (e.boss ? 0.42 : 0.3)
+    if (x + r * 2 + size * 1.6 > maxX) break
+    ctx.fillStyle = e.color
+    ctx.shadowColor = e.color
+    ctx.shadowBlur = size * 0.4
+    ctx.beginPath()
+    if (e.boss) {
+      // diamond for bosses
+      ctx.moveTo(x + r, y - r)
+      ctx.lineTo(x + r * 2, y)
+      ctx.lineTo(x + r, y + r)
+      ctx.lineTo(x, y)
+      ctx.closePath()
+    } else ctx.arc(x + r, y, r, 0, Math.PI * 2)
+    ctx.fill()
+    ctx.shadowBlur = 0
+    x += r * 2 + size * 0.18
+    text(ctx, `${e.count}`, x, y + 1, size * 0.8, '#e6f0ff', 800)
+    ctx.font = `800 ${size * 0.8}px ${FONT}`
+    x += ctx.measureText(`${e.count}`).width + size * 0.55
+  }
+  return x
+}

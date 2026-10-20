@@ -72,10 +72,16 @@ export function VirtualRoom() {
       if ((o as Mesh).isMesh && o.userData.surface) {
         game.surfaces.add(o)
         registered.push(o as Mesh)
+      } else if ((o as Mesh).isMesh && o.userData.furniture) {
+        game.furniture.add(o)
+        registered.push(o as Mesh)
       }
     })
     return () => {
-      registered.forEach((m) => game.surfaces.delete(m))
+      registered.forEach((m) => {
+        game.surfaces.delete(m)
+        game.furniture.delete(m)
+      })
     }
   }, [])
 
@@ -145,7 +151,7 @@ export function VirtualRoom() {
 
       {/* sofa */}
       <group position={[sx, 0, sz]}>
-        <mesh position={[0, 0.16, 0]} castShadow receiveShadow>
+        <mesh position={[0, 0.16, 0]} castShadow receiveShadow userData={{ furniture: true }}>
           <boxGeometry args={[R.sofa.w, 0.24, R.sofa.d]} />
           <meshStandardMaterial color="#232a3e" roughness={0.9} />
         </mesh>

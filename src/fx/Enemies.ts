@@ -102,10 +102,14 @@ function legs(count: number, spanX: number, z0: number, z1: number, y: number, l
   return out
 }
 
-function swarmerGeometry() {
-  const dark = '#24102f'
-  const plate = '#3b1a4a'
-  return mergeGeometries([
+interface Palette {
+  dark: string
+  plate: string
+}
+
+function swarmerGeometry(pal: Palette = { dark: '#24102f', plate: '#3b1a4a' }, extra: 'none' | 'sacs' | 'orb' | 'spikes' = 'none') {
+  const { dark, plate } = pal
+  const parts = [
     part(sphere(), { pos: [0, 0.05, 0.005], scale: [0.042, 0.028, 0.05], color: plate }),
     part(sphere(), { pos: [0, 0.055, -0.055], scale: [0.04, 0.034, 0.05], color: dark }),
     part(sphere(), { pos: [0, 0.058, -0.06], scale: [0.018, 0.02, 0.04], color: dark, glow: 0.8 }),
@@ -115,12 +119,26 @@ function swarmerGeometry() {
     part(new ConeGeometry(0.005, 0.03, 4), { pos: [0.01, 0.035, 0.08], rot: [1.9, 0, 0.2], color: plate }),
     part(new ConeGeometry(0.005, 0.03, 4), { pos: [-0.01, 0.035, 0.08], rot: [1.9, 0, -0.2], color: plate }),
     ...legs(6, 0.03, -0.025, 0.035, 0.045, 0.045, 0.0045, dark),
-  ])!
+  ]
+  if (extra === 'sacs') {
+    for (let i = 0; i < 3; i++) {
+      const a = (i - 1) * 0.9
+      parts.push(part(sphere(8), { pos: [Math.sin(a) * 0.022, 0.085, -0.04 + Math.cos(a) * 0.01], scale: [0.016, 0.016, 0.016], color: plate, glow: 1.1 }))
+    }
+  } else if (extra === 'orb') {
+    parts.push(part(sphere(10), { pos: [0, 0.095, -0.01], scale: [0.02, 0.02, 0.02], glow: 2.2 }))
+    parts.push(part(new CylinderGeometry(0.003, 0.003, 0.03, 4), { pos: [0, 0.075, -0.01], color: dark }))
+  } else if (extra === 'spikes') {
+    for (let i = 0; i < 3; i++) {
+      parts.push(part(new ConeGeometry(0.006, 0.03, 4), { pos: [0, 0.075, 0.02 - i * 0.03], rot: [-0.5, 0, 0], color: plate, glow: 0.6 }))
+    }
+  }
+  return mergeGeometries(parts)!
 }
 
-function tankGeometry() {
-  const shell = '#2c1a24'
-  const plate = '#4a2a2a'
+function tankGeometry(pal: Palette = { dark: '#2c1a24', plate: '#4a2a2a' }) {
+  const shell = pal.dark
+  const plate = pal.plate
   const parts: BufferGeometry[] = [
     part(sphere(14), { pos: [0, 0.1, 0], scale: [0.1, 0.065, 0.13], color: shell }),
     part(new BoxGeometry(1, 1, 1), { pos: [0, 0.155, 0.02], scale: [0.11, 0.02, 0.07], rot: [0.15, 0, 0], color: plate }),
@@ -154,9 +172,9 @@ function flyerGeometry() {
   ])!
 }
 
-function bossGeometry() {
-  const shell = '#1e0c1c'
-  const plate = '#3c1630'
+function bossGeometry(pal: Palette = { dark: '#1e0c1c', plate: '#3c1630' }) {
+  const shell = pal.dark
+  const plate = pal.plate
   const parts: BufferGeometry[] = [
     part(sphere(18), { pos: [0, 0.26, -0.02], scale: [0.22, 0.15, 0.3], color: shell }),
     part(sphere(14), { pos: [0, 0.25, 0.28], scale: [0.12, 0.1, 0.1], color: plate }),
@@ -182,13 +200,57 @@ function bossGeometry() {
 }
 
 // creatures are modelled at roughly real insect scale and enlarged for readability in a room
-const ENEMY_SCALE: Record<EnemyType, number> = { swarmer: 1.4, tank: 1.4, flyer: 1.4, boss: 1.28 }
+const ENEMY_SCALE: Record<EnemyType, number> = {
+  swarmer: 1.4,
+  runner: 1.2,
+  mite: 0.95,
+  splitter: 2.0,
+  healer: 1.6,
+  tank: 1.4,
+  shielded: 1.05,
+  flyer: 1.4,
+  miniboss: 0.85,
+  boss: 1.28,
+}
 
 const TYPE_STYLE: Record<EnemyType, { glow: string; capacity: number; animSpeed: number; animAmp: number; noiseScale: number }> = {
   swarmer: { glow: '#ff2fd0', capacity: 160, animSpeed: 22, animAmp: 0.017, noiseScale: 50 },
+  runner: { glow: '#ffd21a', capacity: 160, animSpeed: 34, animAmp: 0.015, noiseScale: 55 },
+  mite: { glow: '#9dff2a', capacity: 160, animSpeed: 30, animAmp: 0.012, noiseScale: 60 },
+  splitter: { glow: '#5dff3a', capacity: 40, animSpeed: 14, animAmp: 0.02, noiseScale: 36 },
+  healer: { glow: '#3dff8a', capacity: 24, animSpeed: 16, animAmp: 0.017, noiseScale: 44 },
   tank: { glow: '#ff7a1a', capacity: 48, animSpeed: 9, animAmp: 0.025, noiseScale: 30 },
-  flyer: { glow: '#38f0ff', capacity: 64, animSpeed: 26, animAmp: 0, noiseScale: 50 },
+  shielded: { glow: '#3fa8ff', capacity: 40, animSpeed: 12, animAmp: 0.02, noiseScale: 36 },
+  flyer: { glow: '#38f0ff', capacity: 120, animSpeed: 26, animAmp: 0, noiseScale: 50 },
+  miniboss: { glow: '#ff2fc8', capacity: 6, animSpeed: 7, animAmp: 0.04, noiseScale: 18 },
   boss: { glow: '#ff2f4f', capacity: 4, animSpeed: 5, animAmp: 0.05, noiseScale: 14 },
+}
+
+export const ENEMY_TYPES = Object.keys(TYPE_STYLE) as EnemyType[]
+
+function geometryFor(type: EnemyType) {
+  switch (type) {
+    case 'swarmer':
+      return swarmerGeometry()
+    case 'runner':
+      return swarmerGeometry({ dark: '#2a2410', plate: '#4a3a12' }, 'spikes')
+    case 'mite':
+      return swarmerGeometry({ dark: '#14240f', plate: '#2c4a1a' })
+    case 'splitter':
+      return swarmerGeometry({ dark: '#122214', plate: '#2a4a24' }, 'sacs')
+    case 'healer':
+      return swarmerGeometry({ dark: '#0f2418', plate: '#1d4a32' }, 'orb')
+    case 'tank':
+      return tankGeometry()
+    case 'shielded':
+      return tankGeometry({ dark: '#141c30', plate: '#22345a' })
+    case 'flyer':
+      return flyerGeometry()
+    case 'miniboss':
+      return bossGeometry({ dark: '#22091f', plate: '#4a1442' })
+    case 'boss':
+      return bossGeometry()
+  }
 }
 
 /** One instanced mesh per creature type with a dissolve / hit-flash shader. */
@@ -196,21 +258,16 @@ export class EnemyRenderer {
   readonly group = new Group()
   readonly meshes: Record<EnemyType, InstancedMesh>
   private data: Record<EnemyType, InstancedBufferAttribute>
-  private counts: Record<EnemyType, number> = { swarmer: 0, tank: 0, flyer: 0, boss: 0 }
+  private counts = {} as Record<EnemyType, number>
   private time = { value: 0 }
 
   constructor() {
-    const geos: Record<EnemyType, BufferGeometry> = {
-      swarmer: swarmerGeometry(),
-      tank: tankGeometry(),
-      flyer: flyerGeometry(),
-      boss: bossGeometry(),
-    }
     const meshes = {} as Record<EnemyType, InstancedMesh>
     const data = {} as Record<EnemyType, InstancedBufferAttribute>
-    for (const type of Object.keys(geos) as EnemyType[]) {
+    for (const type of ENEMY_TYPES) {
+      this.counts[type] = 0
       const style = TYPE_STYLE[type]
-      const geo = geos[type]
+      const geo: BufferGeometry = geometryFor(type)
       geo.scale(ENEMY_SCALE[type], ENEMY_SCALE[type], ENEMY_SCALE[type])
       geo.computeBoundingSphere()
       const attr = new InstancedBufferAttribute(new Float32Array(style.capacity * 4), 4).setUsage(DynamicDrawUsage)
@@ -318,7 +375,7 @@ export class EnemyRenderer {
 
   begin(time: number) {
     this.time.value = time
-    this.counts.swarmer = this.counts.tank = this.counts.flyer = this.counts.boss = 0
+    for (const type of ENEMY_TYPES) this.counts[type] = 0
   }
 
   push(type: EnemyType, matrix: Matrix4, dissolve: number, flash: number, phase: number, slow: number) {
@@ -335,7 +392,7 @@ export class EnemyRenderer {
   }
 
   end() {
-    for (const type of Object.keys(this.meshes) as EnemyType[]) {
+    for (const type of ENEMY_TYPES) {
       const mesh = this.meshes[type]
       mesh.count = this.counts[type]
       if (mesh.count > 0) {

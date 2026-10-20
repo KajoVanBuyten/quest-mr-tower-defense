@@ -3,7 +3,8 @@ import { useRef } from 'react'
 import { Group, Matrix4, Quaternion, Vector3 } from 'three'
 import { GAME, TOWER_ORDER, TOWERS, type TowerType } from '../game/config'
 import { game } from '../game/Game'
-import { bar, glassPanel, hpColor, roundRect, text } from '../scene/canvasPanel'
+import { bar, glassPanel, hpColor, previewRow, roundRect, text } from '../scene/canvasPanel'
+import { previewEntries } from '../scene/WorldHud'
 import { Panel } from '../scene/Panel'
 
 const _pw = new Vector3()
@@ -17,10 +18,16 @@ function drawHeader(ctx: CanvasRenderingContext2D, w: number, h: number) {
   glassPanel(ctx, w, h, '#5ff6ff', 22)
   const hp = game.coreHp / GAME.coreHp
   text(ctx, `◆ ${game.credits}`, 26, 40, 40, '#ffe36a', 800, 'left', 10)
-  text(ctx, `W ${Math.max(game.wave, game.phase === 'wave' ? game.wave : game.wave + 1)}/${GAME.totalWaves}`, w - 26, 40, 32, '#ffffff', 800, 'right')
+  const wv = game.nextWave
+  text(ctx, game.endless || wv > GAME.totalWaves ? `W ${wv} ∞` : `W ${wv}/${GAME.totalWaves}`, w - 26, 40, 32, game.endless ? '#ff9af0' : '#ffffff', 800, 'right')
   bar(ctx, 26, 76, w * 0.5, 14, hp, hpColor(hp))
   text(ctx, `${Math.ceil(game.coreHp)}`, 26 + w * 0.5 + 12, 83, 24, hpColor(hp), 800)
   bar(ctx, w * 0.68, 76, w * 0.32 - 26, 14, game.ult, '#ff5af0')
+  if (!game.corePlaced) return
+  const pv = game.preview
+  const tagColor = pv.tag === 'BOSS' ? '#ff4d6a' : pv.tag === 'MINI-BOSS' ? '#ff6ae0' : '#9fb3d9'
+  text(ctx, pv.tag === 'BOSS' ? 'BOSS' : pv.tag === 'MINI-BOSS' ? 'MINI' : game.phase === 'wave' ? 'JETZT' : 'NÄCHST', 26, 134, 20, tagColor, 900)
+  previewRow(ctx, previewEntries(pv), 100, 134, 26, w - 16)
 }
 
 function drawTower(type: TowerType) {
@@ -50,7 +57,7 @@ function drawTower(type: TowerType) {
 
 function drawAction(ctx: CanvasRenderingContext2D, w: number, h: number, hover: boolean) {
   const end = game.phase === 'gameover' || game.phase === 'victory'
-  const wave = game.phase === 'wave'
+  const wave = game.phase === 'wave' || (game.phase === 'build' && game.introActive)
   const color = end ? '#ffe36a' : wave ? '#56607a' : '#4ff7c8'
   roundRect(ctx, 5, 5, w - 10, h - 10, (h - 10) / 2)
   ctx.fillStyle = hover && !wave ? color : 'rgba(10, 16, 26, 0.92)'
@@ -58,7 +65,8 @@ function drawAction(ctx: CanvasRenderingContext2D, w: number, h: number, hover: 
   ctx.lineWidth = 3
   ctx.strokeStyle = color
   ctx.stroke()
-  text(ctx, end ? 'NEU STARTEN' : wave ? 'WELLE LÄUFT' : 'WELLE STARTEN', w / 2, h / 2 + 1, 28, hover && !wave ? '#04121a' : color, 900, 'center')
+  const label = game.phase === 'victory' ? 'ENDLOS ∞' : end ? 'NEU STARTEN' : game.phase === 'wave' ? 'WELLE LÄUFT' : wave ? 'RISSE …' : 'WELLE STARTEN'
+  text(ctx, label, w / 2, h / 2 + 1, 28, hover && !wave ? '#04121a' : color, 900, 'center')
 }
 
 function drawUlt(ctx: CanvasRenderingContext2D, w: number, h: number, hover: boolean) {
@@ -106,7 +114,14 @@ export function WristMenu({ lift = 0.09 }: { lift?: number }) {
   const towerSig = () => `${game.selected}|${game.credits}`
   return (
     <group ref={group}>
-      <Panel width={0.17} height={0.05} resolution={2600} position={[0, 0.05, 0]} signature={() => `${game.credits}|${Math.ceil(game.coreHp)}|${game.wave}|${game.phase}|${Math.floor(game.ult * 40)}`} draw={drawHeader} />
+      <Panel
+        width={0.17}
+        height={0.064}
+        resolution={2600}
+        position={[0, 0.057, 0]}
+        signature={() => `${game.credits}|${Math.ceil(game.coreHp)}|${game.wave}|${game.phase}|${Math.floor(game.ult * 40)}|${game.endless}|${game.corePlaced}`}
+        draw={drawHeader}
+      />
       {TOWER_ORDER.map((type, i) => (
         <Panel
           key={type}
@@ -124,11 +139,12 @@ export function WristMenu({ lift = 0.09 }: { lift?: number }) {
         height={0.032}
         resolution={2600}
         position={[-0.035, -0.088, 0]}
-        signature={() => game.phase}
+        signature={() => `${game.phase}|${game.introActive}`}
         draw={drawAction}
         onPress={() => {
           if (game.phase === 'build') game.startWave()
-          else if (game.phase === 'gameover' || game.phase === 'victory') game.restart()
+          else if (game.phase === 'victory') game.continueEndless()
+          else if (game.phase === 'gameover') game.restart()
         }}
       />
       <Panel

@@ -1,5 +1,4 @@
 import {
-  AdditiveBlending,
   BoxGeometry,
   BufferGeometry,
   Color,
@@ -10,13 +9,15 @@ import {
   LineSegments,
   Material,
   Mesh,
+  MeshBasicMaterial,
   MeshStandardMaterial,
   Object3D,
   OctahedronGeometry,
   SphereGeometry,
   TorusGeometry,
 } from 'three'
-import { TOWERS, type TowerType } from '../game/config'
+import { MAX_TOWER_LEVEL, TOWERS, type TowerType } from '../game/config'
+import { GLOW_OPACITY, applyBlend } from './blending'
 
 export interface TowerModel {
   root: Group
@@ -25,20 +26,30 @@ export interface TowerModel {
   /** pitch part (child of turret) */
   barrel: Object3D
   muzzle: Object3D
+  /** tier parts that are rebuilt on every upgrade */
   levelGroup: Group
+  /** slowly orbiting tier parts */
+  orbit: Group
   height: number
+  baseHeight: number
   materials: Material[]
   build: { value: number }
   baseY: { value: number }
+  uHeight: { value: number }
   holo: LineSegments[]
   accent: MeshStandardMaterial
   spin: Object3D[]
+  /** extra emissive while hovered / selected (0..1) */
+  highlight: number
+  level: number
 }
 
+const _c = new Color()
+const WHITE = new Color('#ffffff')
+const GOLD = new Color('#ffd76a')
 
-function buildMaterial(params: ConstructorParameters<typeof MeshStandardMaterial>[0], build: { value: number }, baseY: { value: number }, height: number) {
+function buildMaterial(params: ConstructorParameters<typeof MeshStandardMaterial>[0], build: { value: number }, baseY: { value: number }, uHeight: { value: number }) {
   const m = new MeshStandardMaterial(params)
-  const uHeight = { value: height }
   m.onBeforeCompile = (shader) => {
     shader.uniforms.uBuild = build
     shader.uniforms.uBaseY = baseY
@@ -68,15 +79,18 @@ function buildMaterial(params: ConstructorParameters<typeof MeshStandardMaterial
   return m
 }
 
+const HEIGHT: Record<TowerType, number> = { laser: 0.34, tesla: 0.4, mortar: 0.26, frost: 0.36 }
+
 /** Builds a procedural tower model. All tower parts share the hologram build-up shader. */
 export function createTowerModel(type: TowerType): TowerModel {
   const def = TOWERS[type]
   const build = { value: 0 }
   const baseY = { value: 0 }
-  const height = type === 'mortar' ? 0.26 : type === 'frost' ? 0.36 : type === 'tesla' ? 0.4 : 0.34
+  const height = HEIGHT[type]
+  const uHeight = { value: height }
   const materials: Material[] = []
   const mat = (p: ConstructorParameters<typeof MeshStandardMaterial>[0]) => {
-    const m = buildMaterial(p, build, baseY, height)
+    const m = buildMaterial(p, build, baseY, uHeight)
     materials.push(m)
     return m
   }
@@ -90,6 +104,7 @@ export function createTowerModel(type: TowerType): TowerModel {
   const barrel = new Group()
   const muzzle = new Object3D()
   const levelGroup = new Group()
+  const orbit = new Group()
   const spin: Object3D[] = []
   const add = (parent: Object3D, geo: BufferGeometry, m: Material, x = 0, y = 0, z = 0, rx = 0, ry = 0, rz = 0) => {
     const mesh = new Mesh(geo, m)
@@ -104,7 +119,6 @@ export function createTowerModel(type: TowerType): TowerModel {
   // shared hex base
   add(root, new CylinderGeometry(0.085, 0.1, 0.035, 6), hull, 0, 0.0175)
   add(root, new TorusGeometry(0.088, 0.005, 5, 6), accent, 0, 0.036, 0, Math.PI / 2, 0, Math.PI / 6)
-  root.add(levelGroup)
 
   switch (type) {
     case 'laser': {
@@ -170,7 +184,8 @@ export function createTowerModel(type: TowerType): TowerModel {
 
   // hologram wireframe that fades away once the tower is assembled
   const holo: LineSegments[] = []
-  const holoMat = new LineBasicMaterial({ color: '#6ff4ff', transparent: true, opacity: 0.7, blending: AdditiveBlending, depthWrite: false, toneMapped: false })
+  const holoMat = applyBlend(new LineBasicMaterial({ color: '#6ff4ff', opacity: 0.7, toneMapped: false }), GLOW_OPACITY)
+  materials.push(holoMat)
   root.traverse((o) => {
     if ((o as Mesh).isMesh) {
       const mesh = o as Mesh
@@ -179,23 +194,90 @@ export function createTowerModel(type: TowerType): TowerModel {
       holo.push(lines)
     }
   })
+  root.add(levelGroup, orbit)
 
-  return { root, turret, barrel, muzzle, levelGroup, height, materials, build, baseY, holo, accent, spin }
+  return { root, turret, barrel, muzzle, levelGroup, orbit, height, baseHeight: height, materials, build, baseY, uHeight, holo, accent, spin, highlight: 0, level: 1 }
 }
 
+function disposeGroup(g: Group) {
+  g.traverse((o) => {
+    const m = o as Mesh
+    if (m.isMesh) {
+      m.geometry.dispose()
+      ;(m.material as Material).dispose()
+    }
+  })
+  g.clear()
+}
+
+/**
+ * Visual tiers. Every level adds parts so an upgrade is readable from across the room:
+ * level pips on the base, a second trim ring (2), fins (3), orbiting crystals (4) and a crown (5).
+ * The whole tower also grows a little and its energy colour shifts towards white / gold.
+ */
 export function setTowerLevelVisual(model: TowerModel, level: number, color: string) {
-  model.levelGroup.clear()
-  const m = new MeshStandardMaterial({ color: '#111', emissive: new Color(color), emissiveIntensity: 3, toneMapped: false })
-  for (let i = 1; i < level; i++) {
-    const ring = new Mesh(new TorusGeometry(0.1 + i * 0.012, 0.004, 5, 6), m)
+  model.level = level
+  disposeGroup(model.levelGroup)
+  disposeGroup(model.orbit)
+  const max = level >= MAX_TOWER_LEVEL
+  const tint = _c.set(color).lerp(max ? GOLD : WHITE, (level - 1) * (max ? 0.12 : 0.1)).clone()
+  const glowMat = () => new MeshStandardMaterial({ color: '#111', emissive: tint, emissiveIntensity: 2.4 + level * 0.5, toneMapped: false })
+  const metal = () => new MeshStandardMaterial({ color: max ? '#6a5520' : '#2b3348', metalness: 0.9, roughness: 0.25 })
+
+  // level pips around the base
+  const pipGeo = new SphereGeometry(0.008, 8, 6)
+  for (let i = 0; i < level; i++) {
+    const a = Math.PI / 2 + (i - (level - 1) / 2) * 0.32
+    const pip = new Mesh(i === 0 ? pipGeo : pipGeo.clone(), glowMat())
+    pip.position.set(Math.cos(a) * 0.097, 0.03, Math.sin(a) * 0.097)
+    model.levelGroup.add(pip)
+  }
+  if (level >= 2) {
+    const ring = new Mesh(new TorusGeometry(0.108, 0.006, 5, 6), glowMat())
     ring.rotation.set(Math.PI / 2, 0, Math.PI / 6)
-    ring.position.y = 0.006 + i * 0.008
+    ring.position.y = 0.012
     model.levelGroup.add(ring)
   }
-  model.accent.emissiveIntensity = 2.6 + (level - 1) * 1.2
+  if (level >= 3) {
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2 + Math.PI / 6
+      const fin = new Mesh(new BoxGeometry(0.012, 0.11, 0.04), metal())
+      fin.position.set(Math.cos(a) * 0.07, 0.09, Math.sin(a) * 0.07)
+      fin.rotation.y = -a
+      fin.castShadow = true
+      model.levelGroup.add(fin)
+      const strip = new Mesh(new BoxGeometry(0.014, 0.08, 0.006), glowMat())
+      strip.position.set(Math.cos(a) * 0.072, 0.09, Math.sin(a) * 0.072)
+      strip.rotation.y = -a + Math.PI / 2
+      model.levelGroup.add(strip)
+    }
+  }
+  if (level >= 4) {
+    for (let i = 0; i < 2; i++) {
+      const crystal = new Mesh(new OctahedronGeometry(0.016, 0), glowMat())
+      crystal.scale.set(0.7, 1.6, 0.7)
+      const a = i * Math.PI
+      crystal.position.set(Math.cos(a) * 0.12, model.baseHeight * 0.75, Math.sin(a) * 0.12)
+      model.orbit.add(crystal)
+    }
+  }
+  if (max) {
+    const crown = new Mesh(new TorusGeometry(0.06, 0.005, 6, 32), glowMat())
+    crown.rotation.x = Math.PI / 2
+    crown.position.y = model.baseHeight + 0.05
+    model.orbit.add(crown)
+  }
+  const s = 1 + (level - 1) * 0.07
+  model.root.scale.setScalar(s)
+  model.height = model.baseHeight * s
+  model.uHeight.value = model.height
+  model.accent.emissive.copy(tint)
+  model.accent.emissiveIntensity = 2.6 + (level - 1) * 0.9
 }
 
 export function disposeTowerModel(model: TowerModel) {
+  disposeGroup(model.levelGroup)
+  disposeGroup(model.orbit)
   model.root.traverse((o) => {
     const mesh = o as Mesh
     if (mesh.geometry) mesh.geometry.dispose()
@@ -203,3 +285,29 @@ export function disposeTowerModel(model: TowerModel) {
   model.materials.forEach((m) => m.dispose())
 }
 
+export interface TowerGhost {
+  root: Group
+  fill: MeshBasicMaterial
+  lines: LineBasicMaterial
+}
+
+/** Translucent hologram of a tower used as placement preview. */
+export function createTowerGhost(type: TowerType): TowerGhost {
+  const model = createTowerModel(type)
+  const fill = applyBlend(new MeshBasicMaterial({ color: '#5ff6ff', opacity: 0.22, toneMapped: false }), GLOW_OPACITY)
+  const lines = applyBlend(new LineBasicMaterial({ color: '#5ff6ff', opacity: 0.9, toneMapped: false }), GLOW_OPACITY)
+  model.root.traverse((o) => {
+    const mesh = o as Mesh
+    if ((o as LineSegments).isLineSegments) (o as LineSegments).material = lines
+    else if (mesh.isMesh) {
+      mesh.material = fill
+      mesh.castShadow = false
+      mesh.receiveShadow = false
+    }
+  })
+  model.materials.forEach((m) => m.dispose())
+  model.root.traverse((o) => {
+    o.renderOrder = 24
+  })
+  return { root: model.root, fill, lines }
+}

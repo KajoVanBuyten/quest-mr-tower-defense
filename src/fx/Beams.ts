@@ -1,5 +1,4 @@
 import {
-  AdditiveBlending,
   Color,
   CylinderGeometry,
   DynamicDrawUsage,
@@ -10,6 +9,7 @@ import {
   ShaderMaterial,
   Vector3,
 } from 'three'
+import { GLOW } from './blending'
 
 const _m = new Matrix4()
 const _q = new Quaternion()
@@ -65,12 +65,12 @@ export class Beams {
           float core = pow(f, 4.0);
           float flick = 0.82 + 0.18 * sin(uTime * 47.0 + vSeed * 1.7 + vAlong * 9.0);
           vec3 c = vCol.rgb * (0.25 + 1.4 * f) + vec3(1.0) * core * 0.9;
-          gl_FragColor = vec4(c * vCol.a * flick, 1.0);
+          gl_FragColor = vec4(c * vCol.a * flick, 0.0);
         }
       `,
       transparent: true,
       depthWrite: false,
-      blending: AdditiveBlending,
+      ...GLOW,
       toneMapped: false,
     })
     this.mesh = new InstancedMesh(geo, this.material, capacity)

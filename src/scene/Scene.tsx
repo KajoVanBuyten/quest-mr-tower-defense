@@ -5,11 +5,14 @@ import { useXR } from '@react-three/xr'
 import { useEffect } from 'react'
 import { game } from '../game/Game'
 import { useUI } from '../game/uiStore'
+import { DepthOcclusion } from '../xr/DepthOcclusion'
 import { XRInput } from '../xr/XRInput'
 import { XRRoom } from '../xr/XRRoom'
 import { DesktopInput } from './DesktopInput'
 import { Lighting } from './Lighting'
 import { PlacementPreview } from './PlacementPreview'
+import { RiftIndicators } from './RiftIndicators'
+import { TowerCard } from './TowerCard'
 import { VirtualRoom } from './VirtualRoom'
 import { WorldHud } from './WorldHud'
 
@@ -39,6 +42,25 @@ function MenuCamera() {
   return null
 }
 
+/**
+ * In passthrough AR nothing may fill the frame: no background colour, no fog,
+ * and a fully transparent clear so the compositor shows the real room.
+ */
+function ARBackground() {
+  const scene = useThree((s) => s.scene)
+  const gl = useThree((s) => s.gl)
+  useEffect(() => {
+    scene.background = null
+    scene.fog = null
+    gl.setClearColor(0x000000, 0)
+  }, [scene, gl])
+  useFrame(() => {
+    if (scene.background !== null) scene.background = null
+    if (scene.fog !== null) scene.fog = null
+  })
+  return null
+}
+
 function DesktopEffects() {
   return (
     <EffectComposer multisampling={4}>
@@ -61,11 +83,15 @@ export function Scene() {
       {!isAR && <fog attach="fog" args={['#05060d', 8, 18]} />}
       <Lighting xr={isAR} />
       {!isAR && <VirtualRoom />}
+      {isAR && <ARBackground />}
+      {isAR && <DepthOcclusion />}
       {isAR && <XRRoom />}
       <primitive object={game.root} />
       <GameLoop />
       <WorldHud />
       <PlacementPreview />
+      <TowerCard />
+      <RiftIndicators />
       {inXR ? (
         <XRInput />
       ) : (

@@ -55,10 +55,17 @@ export function DesktopInput() {
         e.preventDefault()
         if (game.phase === 'build') game.startWave()
         else if (game.phase === 'gameover' || game.phase === 'victory') game.restart()
-      } else if (e.code === 'KeyF') firing.current = true
+      } else if (e.code === 'KeyE' && game.phase === 'victory') game.continueEndless()
+      else if (e.code === 'KeyF') firing.current = true
       else if (e.code === 'KeyQ') game.orbitalStrike(game.aim.hit ? game.aim.point : null)
-      else if (e.code === 'KeyU' && game.aim.tower) game.upgradeTower(game.aim.tower)
-      else if (e.code === 'KeyX' && game.aim.tower) game.sellTower(game.aim.tower)
+      else if (e.code === 'Escape') game.selectTowerInstance(null)
+      else {
+        const t = game.selectedTower ?? game.aim.tower
+        if (!t) return
+        if (e.code === 'KeyU') game.upgradeTower(t)
+        else if (e.code === 'KeyX') game.sellTower(t)
+        else if (e.code === 'KeyT') game.cycleTargeting(t)
+      }
     }
     const onKeyUp = (e: KeyboardEvent) => {
       if (e.code === 'KeyF') firing.current = false

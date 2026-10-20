@@ -8,7 +8,8 @@ import { xrStore } from '../xr/store'
 const FEATURES = [
   { icon: '◈', title: 'Risse in deinen Wänden', text: 'Dimensionsrisse öffnen sich auf den echten Wänden deines Raums – per Plane Detection erkannt.' },
   { icon: '⬡', title: 'Pfade um deine Möbel', text: 'Kreaturen kriechen heraus, fallen zu Boden und suchen per Flow-Field ihren Weg um Sofa und Tisch.' },
-  { icon: '▲', title: 'Vier Turmtypen', text: 'Laser, Tesla, Plasma-Mörser und Frost. Auf Tischen gebaut erhalten Türme mehr Reichweite.' },
+  { icon: '▲', title: 'Vier Turmtypen, fünf Stufen', text: 'Laser, Tesla, Plasma-Mörser und Frost. Turm anwählen, upgraden und zusehen, wie er wächst. Auf Möbeln gebaut gibt es mehr Reichweite.' },
+  { icon: '☰', title: '50 Wellen + Endlos', text: 'Läufer, Schildträger, Teiler, Heiler, Flieger-Schwärme, alle 5 Wellen ein Mini-Boss, alle 10 ein Koloss – danach Endlos-Modus mit Rekordliste.' },
   { icon: '✦', title: 'Hand-Blaster & Orbital', text: 'Schieß selbst mit Controller oder Fingergeste und ruf einen Orbitalschlag auf die Horde.' },
   { icon: '◐', title: 'Echte Verdeckung', text: 'Raum-Mesh als Tiefenmaske und Schattenfänger: Monster verschwinden hinter echten Möbeln.' },
   { icon: '♪', title: 'Prozeduraler 3D-Sound', text: 'Jeder Klang wird live synthetisiert und per HRTF räumlich im Zimmer platziert.' },
@@ -20,6 +21,8 @@ export function Landing() {
   const vr = useUI((s) => s.vrSupported)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const highScore = useUI((s) => s.highScore)
+  const highWave = useUI((s) => s.highWave)
   if (phase !== 'menu') return null
 
   const enter = async (mode: 'ar' | 'vr') => {
@@ -51,7 +54,8 @@ export function Landing() {
           </h1>
           <p className="lead">
             Dein Wohnzimmer ist das Schlachtfeld. Dimensionsrisse reißen in deinen echten Wänden auf, Void-Kreaturen strömen heraus und marschieren auf den
-            Energiekern, den du auf Boden oder Tisch stellst. Baue Türme auf echten Oberflächen, greif selbst zum Blaster – und halte zehn Wellen stand.
+            Energiekern, den du auf Boden oder Tisch stellst. Baue Türme auf echten Oberflächen, greif selbst zum Blaster – und halte 50 Wellen stand. Danach
+            wartet der Endlos-Modus.
           </p>
           <div className="cta">
             <button className="btn-primary" disabled={busy || ar === false} onClick={() => enter('ar')}>
@@ -67,6 +71,11 @@ export function Landing() {
               Im Browser spielen
             </button>
           </div>
+          {(highScore > 0 || game.highScore > 0) && (
+            <p className="note record">
+              Dein Rekord: {Math.max(highScore, game.highScore).toLocaleString('de-DE')} Punkte · Welle {Math.max(highWave, game.highWave)}
+            </p>
+          )}
           {ar === false && <p className="note">Dieser Browser unterstützt kein immersive-ar. Öffne die Seite im Meta Quest Browser – oder spiele die Desktop-Vorschau.</p>}
           {error && <p className="note error">{error}</p>}
         </header>
@@ -95,17 +104,17 @@ export function Landing() {
           <div className="control-col">
             <h4>Controller</h4>
             <ul>
-              <li><kbd>Rechter Trigger</kbd> Kern / Turm platzieren, Turm upgraden, Menü</li>
+              <li><kbd>Rechter Trigger</kbd> Kern / Turm platzieren, Turm auswählen, Karte bedienen</li>
               <li><kbd>Rechter Grip</kbd> Hand-Blaster (Dauerfeuer, überhitzt)</li>
-              <li><kbd>A</kbd> Orbitalschlag · <kbd>B</kbd> Turm verkaufen</li>
+              <li><kbd>A</kbd> gewählten Turm upgraden, sonst Orbitalschlag · <kbd>B</kbd> Auswahl schließen</li>
               <li><kbd>Stick ◂ ▸</kbd> / <kbd>Y</kbd> Turmtyp wechseln</li>
-              <li><kbd>X</kbd> Welle starten · <kbd>Linker Trigger</kbd> Orbital</li>
+              <li><kbd>X</kbd> Welle starten / Endlos weiter · <kbd>Linker Trigger</kbd> Orbital</li>
             </ul>
           </div>
           <div className="control-col">
             <h4>Hand-Tracking</h4>
             <ul>
-              <li><kbd>Rechts Pinch</kbd> (Daumen + Zeigefinger) platzieren / upgraden</li>
+              <li><kbd>Rechts Pinch</kbd> (Daumen + Zeigefinger) platzieren / Turm auswählen / Karte bedienen</li>
               <li><kbd>Rechts Daumen + Mittelfinger</kbd> Hand-Blaster</li>
               <li><kbd>Links Pinch</kbd> Orbitalschlag</li>
               <li><kbd>Zeigefinger</kbd> Handgelenk-Menü antippen</li>
@@ -114,8 +123,9 @@ export function Landing() {
           <div className="control-col">
             <h4>Desktop-Vorschau</h4>
             <ul>
-              <li><kbd>Linksklick</kbd> platzieren / upgraden · <kbd>Rechtsklick</kbd> verkaufen</li>
-              <li><kbd>1–4</kbd> Turm wählen · <kbd>Leertaste</kbd> Welle</li>
+              <li><kbd>Linksklick</kbd> platzieren / Turm auswählen · <kbd>Rechtsklick</kbd> Auswahl schließen</li>
+              <li><kbd>U</kbd> Upgrade · <kbd>X</kbd> Verkaufen · <kbd>T</kbd> Zielmodus · <kbd>Esc</kbd> schließen</li>
+              <li><kbd>1–4</kbd> Turmtyp · <kbd>Leertaste</kbd> Welle · <kbd>E</kbd> Endlos weiter</li>
               <li><kbd>F</kbd> (halten) Blaster · <kbd>Q</kbd> Orbitalschlag</li>
               <li><kbd>Ziehen</kbd> Kamera drehen · <kbd>Scrollen</kbd> Zoom</li>
             </ul>

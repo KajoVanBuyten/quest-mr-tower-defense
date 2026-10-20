@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { TowerType } from './config'
+import type { TowerType, WavePreview } from './config'
 
 export type Phase = 'menu' | 'scan' | 'placeCore' | 'build' | 'wave' | 'gameover' | 'victory'
 
@@ -25,13 +25,22 @@ export interface UIState {
   vrSupported: boolean | null
   muted: boolean
   roomSource: string
+  endless: boolean
+  score: number
+  highScore: number
+  highWave: number
+  preview: WavePreview | null
+  selectedTowerId: number
+  selectedTowerLevel: number
+  intro: boolean
+  orbitalArmed: boolean
 }
 
 export const useUI = create<UIState>(() => ({
   phase: 'menu',
   xr: false,
   wave: 0,
-  totalWaves: 10,
+  totalWaves: 50,
   credits: 0,
   coreHp: 100,
   coreMax: 100,
@@ -49,4 +58,13 @@ export const useUI = create<UIState>(() => ({
   vrSupported: null,
   muted: false,
   roomSource: '',
+  endless: false,
+  score: 0,
+  highScore: 0,
+  highWave: 0,
+  preview: null,
+  selectedTowerId: 0,
+  selectedTowerLevel: 0,
+  intro: false,
+  orbitalArmed: false,
 }))

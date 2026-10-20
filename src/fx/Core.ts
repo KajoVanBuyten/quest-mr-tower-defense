@@ -1,5 +1,4 @@
 import {
-  AdditiveBlending,
   Color,
   CylinderGeometry,
   FrontSide,
@@ -16,6 +15,7 @@ import {
   Vector3,
   Vector4,
 } from 'three'
+import { GLOW } from './blending'
 import { NOISE_GLSL } from './glsl'
 
 const MAX_RIPPLES = 4
@@ -125,12 +125,12 @@ export class CoreVisual {
           vec3 col = mix(vec3(1.0, 0.2, 0.3), uColor, hp);
           float a = fres * (0.35 + 0.35 * hp) + grid * 0.06 * (0.5 + cells) + ripple;
           a *= uSpawn;
-          gl_FragColor = vec4(col * a, 1.0);
+          gl_FragColor = vec4(col * a, 0.0);
         }
       `,
       transparent: true,
       depthWrite: false,
-      blending: AdditiveBlending,
+      ...GLOW,
       side: FrontSide,
       toneMapped: false,
     })
@@ -154,12 +154,12 @@ export class CoreVisual {
             float filled = step(a, uHp);
             vec3 c = mix(vec3(1.0, 0.25, 0.3), vec3(0.2, 0.95, 1.0), uHp);
             float seg = step(0.15, fract(a * 40.0));
-            gl_FragColor = vec4(c * (filled * 1.2 + 0.08) * seg, 1.0);
+            gl_FragColor = vec4(c * (filled * 1.2 + 0.08) * seg, 0.0);
           }
         `,
         transparent: true,
         depthWrite: false,
-        blending: AdditiveBlending,
+        ...GLOW,
         toneMapped: false,
       }),
     )

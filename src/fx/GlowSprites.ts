@@ -1,5 +1,4 @@
 import {
-  AdditiveBlending,
   Color,
   DynamicDrawUsage,
   InstancedBufferAttribute,
@@ -9,6 +8,7 @@ import {
   ShaderMaterial,
   Vector3,
 } from 'three'
+import { GLOW } from './blending'
 
 export interface EmitOptions {
   size?: number
@@ -98,12 +98,12 @@ export class GlowSprites {
           a = pow(a, 1.0 + uSoft);
           float core = pow(max(0.0, 1.0 - d * 2.2), 2.0);
           vec3 c = vCol.rgb * a + vec3(core) * vCol.a * 0.9;
-          gl_FragColor = vec4(c * vCol.a, 1.0);
+          gl_FragColor = vec4(c * vCol.a, 0.0);
         }
       `,
       transparent: true,
       depthWrite: false,
-      blending: AdditiveBlending,
+      ...GLOW,
       toneMapped: false,
     })
     this.mesh = new Mesh(g, mat)

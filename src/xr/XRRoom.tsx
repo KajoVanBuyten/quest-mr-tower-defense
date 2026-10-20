@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useXRMeshes, useXRPlanes, XRMeshModel, XRPlaneModel, XRSpace } from '@react-three/xr'
 import { useEffect, useRef } from 'react'
-import { Matrix4, Mesh, Vector3 } from 'three'
+import { DoubleSide, Matrix4, Mesh, Vector3 } from 'three'
 import { game } from '../game/Game'
 import type { Obstacle, RoomModel, WallInfo } from '../game/room'
 import { keyOf } from './keys'
@@ -41,11 +41,24 @@ function PlaneSurface({ plane }: { plane: XRPlane }) {
   )
 }
 
+/** Depth-only occluder for a scanned mesh. Labelled furniture volumes also serve as placement probes. */
 function MeshOccluder({ mesh }: { mesh: XRMesh }) {
+  const ref = useRef<Mesh>(null)
+  const label = mesh.semanticLabel ?? ''
+  const furniture = label !== '' && !IGNORE_MESH.has(label)
+  useEffect(() => {
+    const m = ref.current
+    if (!m || !furniture) return
+    game.furniture.add(m)
+    return () => {
+      game.furniture.delete(m)
+    }
+  }, [furniture])
   return (
     <XRSpace space={mesh.meshSpace}>
-      <XRMeshModel mesh={mesh} renderOrder={-10}>
-        <meshBasicMaterial colorWrite={false} />
+      <XRMeshModel ref={ref} mesh={mesh} renderOrder={-10}>
+        {/* double sided: scanned meshes do not guarantee a consistent winding, the placement probe must hit the top either way */}
+        <meshBasicMaterial colorWrite={false} side={DoubleSide} />
       </XRMeshModel>
     </XRSpace>
   )
@@ -130,7 +143,13 @@ export function XRRoom() {
         const height = xIsUp ? maxLX - minLX : maxLZ - minLZ
         const bottom = Math.min(...ys)
         if (label === 'wall' || (label === '' && width > 1.2 && height > 1.6)) {
-          walls.push({ center, normal, width, height, bottom })
+          // outline in wall coordinates so rifts can be kept inside the real wall surface
+          const right = _b.set(normal.z, 0, -normal.x).normalize()
+          const poly: Array<[number, number]> = []
+          for (let i = 0; i < xs.length; i++) {
+            poly.push([(xs[i] - center.x) * right.x + (zs[i] - center.z) * right.z, ys[i]])
+          }
+          walls.push({ center, normal, width, height, bottom, poly, label: label || 'wall' })
         } else if (label !== 'door' && label !== 'window' && label !== 'wall art' && label !== 'screen') {
           // vertical furniture faces (e.g. a cupboard front) only block the floor near them
           const half = width / 2

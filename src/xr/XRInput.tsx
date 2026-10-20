@@ -48,7 +48,20 @@ export function XRInput() {
       }
     }
     session.addEventListener('select', onSelect)
-    return () => session.removeEventListener('select', onSelect)
+    // short vibration on the controller that performed the action (hands simply have no actuator)
+    game.onHaptic = (intensity, ms) => {
+      const pad = pointerSource.current?.gamepad as (Gamepad & { hapticActuators?: Array<{ pulse?: (v: number, d: number) => Promise<boolean> }> }) | undefined
+      const act = pad?.hapticActuators?.[0] ?? (pad?.vibrationActuator as unknown as { pulse?: (v: number, d: number) => Promise<boolean> } | null | undefined)
+      try {
+        act?.pulse?.(Math.min(1, intensity), ms)?.catch?.(() => undefined)
+      } catch {
+        /* not supported */
+      }
+    }
+    return () => {
+      session.removeEventListener('select', onSelect)
+      game.onHaptic = null
+    }
   }, [session])
 
   useFrame((_, __, frame: XRFrame | undefined) => {
@@ -97,7 +110,11 @@ export function XRInput() {
     if (rg) {
       const b = rg.buttons
       if (b[1]?.pressed) fireFrom()
-      if (edge(mem, 'rA', !!b[4]?.pressed)) game.orbitalStrike(game.aim.hit ? game.aim.point : null)
+      if (edge(mem, 'rA', !!b[4]?.pressed)) {
+        // A upgrades the selected tower, otherwise it calls the orbital strike
+        if (game.selectedTower) game.upgradeTower(game.selectedTower)
+        else game.orbitalStrike(game.aim.hit ? game.aim.point : null)
+      }
       if (edge(mem, 'rB', !!b[5]?.pressed)) game.secondaryAction()
       const x = rg.axes[2] ?? 0
       if (edge(mem, 'rStickR', x > 0.7)) game.cycleTower(1)
@@ -108,7 +125,8 @@ export function XRInput() {
       const b = lg.buttons
       if (edge(mem, 'lX', !!b[4]?.pressed)) {
         if (game.phase === 'build') game.startWave()
-        else if (game.phase === 'gameover' || game.phase === 'victory') game.restart()
+        else if (game.phase === 'victory') game.continueEndless()
+        else if (game.phase === 'gameover') game.restart()
       }
       if (edge(mem, 'lY', !!b[5]?.pressed)) game.cycleTower(1)
       if (b[1]?.pressed && !right) fireFrom()

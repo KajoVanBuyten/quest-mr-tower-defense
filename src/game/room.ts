@@ -14,6 +14,9 @@ export interface WallInfo {
   width: number
   height: number
   bottom: number
+  /** wall outline in wall coordinates: u along `right` from `center`, v = world height */
+  poly?: Array<[number, number]>
+  label?: string
 }
 
 export interface Obstacle extends Bounds {
@@ -32,6 +35,11 @@ export interface RoomModel {
   /** extra blocked sample points (x,z) e.g. rasterized room mesh vertices */
   blockedPoints?: Float32Array
   signature: string
+}
+
+/** Horizontal unit vector along the wall (normal x up). */
+export function wallRight(w: WallInfo, out = new Vector3()) {
+  return out.set(w.normal.z, 0, -w.normal.x).normalize()
 }
 
 export const VIRTUAL_ROOM = {
