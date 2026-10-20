@@ -1,0 +1,11 @@
+{
+  "meta-quest-touch-plus": { "path": "rift-touch/profile.json", "deprecated": false },
+  "meta-quest-touch-pro": { "path": "rift-touch/profile.json", "deprecated": false },
+  "oculus-touch-v3": { "path": "rift-touch/profile.json", "deprecated": false },
+  "oculus-touch-v2": { "path": "rift-touch/profile.json", "deprecated": false },
+  "oculus-touch": { "path": "rift-touch/profile.json", "deprecated": false },
+  "generic-trigger-squeeze-thumbstick": { "path": "rift-touch/profile.json", "deprecated": false },
+  "generic-trigger-squeeze": { "path": "rift-touch/profile.json", "deprecated": false },
+  "generic-trigger": { "path": "rift-touch/profile.json", "deprecated": false },
+  "generic-button": { "path": "rift-touch/profile.json", "deprecated": false }
+}

@@ -1,0 +1,42 @@
+{
+  "profileId": "rift-touch",
+  "layouts": {
+    "left": {
+      "selectComponentId": "xr-standard-trigger",
+      "gamepadMapping": "xr-standard",
+      "rootNodeName": "controller",
+      "assetPath": "none.glb",
+      "components": {
+        "xr-standard-trigger": { "type": "trigger", "gamepadIndices": { "button": 0 }, "rootNodeName": "trigger", "touchPointNodeName": "", "visualResponses": {} },
+        "xr-standard-squeeze": { "type": "squeeze", "gamepadIndices": { "button": 1 }, "rootNodeName": "squeeze", "touchPointNodeName": "", "visualResponses": {} },
+        "xr-standard-thumbstick": { "type": "thumbstick", "gamepadIndices": { "button": 3, "xAxis": 2, "yAxis": 3 }, "rootNodeName": "thumbstick", "touchPointNodeName": "", "visualResponses": {} },
+        "x-button": { "type": "button", "gamepadIndices": { "button": 4 }, "rootNodeName": "x", "touchPointNodeName": "", "visualResponses": {} },
+        "y-button": { "type": "button", "gamepadIndices": { "button": 5 }, "rootNodeName": "y", "touchPointNodeName": "", "visualResponses": {} },
+        "thumbrest": { "type": "button", "gamepadIndices": { "button": 6 }, "rootNodeName": "thumbrest", "touchPointNodeName": "", "visualResponses": {} }
+      }
+    },
+    "right": {
+      "selectComponentId": "xr-standard-trigger",
+      "gamepadMapping": "xr-standard",
+      "rootNodeName": "controller",
+      "assetPath": "none.glb",
+      "components": {
+        "xr-standard-trigger": { "type": "trigger", "gamepadIndices": { "button": 0 }, "rootNodeName": "trigger", "touchPointNodeName": "", "visualResponses": {} },
+        "xr-standard-squeeze": { "type": "squeeze", "gamepadIndices": { "button": 1 }, "rootNodeName": "squeeze", "touchPointNodeName": "", "visualResponses": {} },
+        "xr-standard-thumbstick": { "type": "thumbstick", "gamepadIndices": { "button": 3, "xAxis": 2, "yAxis": 3 }, "rootNodeName": "thumbstick", "touchPointNodeName": "", "visualResponses": {} },
+        "a-button": { "type": "button", "gamepadIndices": { "button": 4 }, "rootNodeName": "a", "touchPointNodeName": "", "visualResponses": {} },
+        "b-button": { "type": "button", "gamepadIndices": { "button": 5 }, "rootNodeName": "b", "touchPointNodeName": "", "visualResponses": {} },
+        "thumbrest": { "type": "button", "gamepadIndices": { "button": 6 }, "rootNodeName": "thumbrest", "touchPointNodeName": "", "visualResponses": {} }
+      }
+    },
+    "none": {
+      "selectComponentId": "xr-standard-trigger",
+      "gamepadMapping": "xr-standard",
+      "rootNodeName": "controller",
+      "assetPath": "none.glb",
+      "components": {
+        "xr-standard-trigger": { "type": "trigger", "gamepadIndices": { "button": 0 }, "rootNodeName": "trigger", "touchPointNodeName": "", "visualResponses": {} }
+      }
+    }
+  }
+}
